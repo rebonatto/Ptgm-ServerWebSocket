@@ -8,23 +8,10 @@ require_once("include/funcoes.php");
 
 class Comunicacao implements MessageComponentInterface {
 
-    protected $clientes, $capturasEnviadas, $modulo1, $modulo2, $capturasEnviadasBanco;
+    protected $clientes;
 
     public function __construct() {
         $this->clientes = new \SplObjectStorage;
-        $this->capturasEnviadas = 0;
-        $this->modulo1 = 0;
-        $this->recebeu = 0;
-        $this->clienteEnviou = 0;
-        $this->menorTest = 1000;
-        $this->maiorTest = 0;
-        $this->somaTest = 0;
-        $this->menorCap = 1000;
-        $this->maiorCap = 0;
-        $this->somaCap = 0;
-        $this->modulo2 = 0;
-        $this->modulo3 = 0;
-        $this->capturasEnviadasBanco = 0;
     }
 
     public function onOpen(ConnectionInterface $conn) {
@@ -41,49 +28,13 @@ class Comunicacao implements MessageComponentInterface {
         if ($msg !== false) {
             $comando = $msg['comando'];
             $mensagem = $msg['mensagem'];
-            if ($comando === "tempo") {
-                echo $mensagem;
-            }
-            if ($comando === "MBEDTest") {
-              echo "\n######################## {$this->capturasEnviadas} ########################\n";
-              $difftest = microtime(true) - $this->clienteEnviou;
-              $difftest *= 1000;
-              $difftest = round($difftest, 4);
-              echo "Tempo Teste: {$difftest}\n";
 
-              try {
-                  $conn = mysqli_connect("localhost", "root", "senha.123", "protegemed");
-                  if ($conn) {
-                    $query = "INSERT INTO dados (codCap, valor) VALUES ('{$this->capturasEnviadas}', '{$difftest}}');";
-                    //echo $query;
-                    $insert = mysqli_query($conn, $query);
-                  }
-                } catch (Exception $e) {
-                    echo $e->getMessage();
-                }
-            }
             if ($comando === "InsertCaptureDB") {
-                echo "\n######################## {$this->capturasEnviadas} ########################\n";
-                $diffcap = microtime(true) - $this->clienteEnviou;
-                $diffcap *= 1000;
-                $diffcap = round($diffcap, 4);
-                echo "Tempo Captura: {$diffcap}\n";
+
                 $fp = fsockopen('localhost', 80);
                 $response = fwrite($fp, $mensagem);
                 fclose($fp);
-                $this->capturasEnviadasBanco = $this->capturasEnviadasBanco + 1;
-                echo "Enviou Captura Banco: {$this->capturasEnviadasBanco}\n";
                 //echo "Caracteres Enviados para o Capture inserir no banco: " . $response . "\n";
-                try {
-                    $conn = mysqli_connect("localhost", "root", "senha.123", "protegemed");
-                    if ($conn) {
-                      $query = "INSERT INTO dados (codCap, valor) VALUES ('{$this->capturasEnviadas}', '{$diffcap}');";
-                      //echo $query;
-                      $insert = mysqli_query($conn, $query);
-                    }
-                  } catch (Exception $e) {
-                      echo $e->getMessage();
-                  }
             }
             if ($comando === "MBEDStart") {
                 try {
@@ -157,28 +108,14 @@ class Comunicacao implements MessageComponentInterface {
                 }
             }
             if ($comando === "capture") {
-                $this->clienteEnviou = microtime(true);
                 $ip = antes(":", $mensagem);
                 $mensagem = depois(":", $mensagem);
                 //echo $ip;
                 //echo $mensagem;
                 foreach ($this->clientes as $client) {
                     if ($client->remoteAddress === $ip) {
-                        $this->capturasEnviadas = $this->capturasEnviadas + 1;
-                        //echo "Cliente Enviou Captura: {$this->capturasEnviadas}\n";
-                        if ($ip === "192.168.1.101") {
-                            $this->modulo1 = $this->modulo1 + 1;
-                            echo "Capturas Enviadas Modulo1: {$this->modulo1}\n";
-                        }
-                        if ($ip === "192.168.1.102") {
-                            $this->modulo2 = $this->modulo2 + 1;
-                            echo "Capturas Enviadas Modulo2: {$this->modulo2}\n";
-                        }
-                        if ($ip === "192.168.1.103") {
-                            $this->modulo3 = $this->modulo3 + 1;
-                            echo "Capturas Enviadas Modulo3: {$this->modulo3}\n";
-                        }
                         $client->send($comando . ":" . $mensagem);
+                        echo "Enviou Comando capture para o IP: {$ip}\n";
                     }
                 }
             }
@@ -191,20 +128,12 @@ class Comunicacao implements MessageComponentInterface {
                 }
             }
             if ($comando === "test") {
-              $this->capturasEnviadas = $this->capturasEnviadas + 1;
-              $this->clienteEnviou = microtime(true);
                 foreach ($this->clientes as $client) {
                     if ($client->remoteAddress === $mensagem) {
-                       $this->enviou = microtime(true);
-                        //echo "Enviou mensagem de teste para o IP: {$mensagem}\n";
+                        echo "Enviou mensagem de teste para o IP: {$mensagem}\n";
                         $client->send($comando);
                     }
                 }
-            }
-            if ($comando === "testSpeed") {
-              $this->capturasEnviadas = $this->capturasEnviadas + 1;
-              $this->clienteEnviou = microtime(true);
-              $from->send("t");
             }
             if ($comando === "checkConnection") {
                 //$from->send(checkConnection($mensagem));
